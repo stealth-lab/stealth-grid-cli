@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"time"
+	"unicode"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -224,6 +225,10 @@ func (m *Model) handleBackspaceKey() (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleDefaultKey(key string) (tea.Model, tea.Cmd) {
+	if !unicode.IsDigit([]rune(key)[0]) {
+		return m, nil
+	}
+
 	if m.CurrentState == EnterStartDays {
 		m.StartDays += key
 	} else if m.CurrentState == EnterEndDays {
@@ -323,9 +328,9 @@ func (m Model) View() string {
 	case SelectGame:
 		return BaseStyle.Render(m.ListModel.View())
 	case EnterStartDays:
-		return BaseStyle.Render("Enter the number of past days to include (e.g., 10):  " + m.StartDays)
+		return BaseStyle.Render("Enter the number of past days to include (e.g., 10): " + m.StartDays)
 	case EnterEndDays:
-		return BaseStyle.Render("Enter the number of future days to include (e.g., 1):  " + m.EndDays)
+		return BaseStyle.Render("Enter the number of future days to include (e.g., 1): " + m.EndDays)
 	case ShowTable:
 		if m.Loading {
 			return BaseStyle.Render(fmt.Sprintf("\n\n   %s Loading data, please wait...  \n\n", m.Spinner.View()))
