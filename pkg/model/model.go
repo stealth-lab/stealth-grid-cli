@@ -1,6 +1,8 @@
 package model
 
 import (
+	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/simplesmentemat/stealth-grid-cli/pkg/export"
 	"github.com/simplesmentemat/stealth-grid-cli/pkg/graphql"
+	"github.com/sqweek/dialog"
 )
 
 type Item struct {
@@ -61,16 +64,17 @@ func InitModel(items []list.Item) Model {
 	const defaultWidth = 40
 	const listHeight = 20
 	l := list.New(items, list.NewDefaultDelegate(), defaultWidth, listHeight)
-	l.Title = "Select a Game"
+	l.Title = "Stealth Grid - Select a Game"
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	return Model{ListModel: l, Spinner: s, CurrentState: SelectGame}
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return m.Spinner.Tick
 }
 
 func fetchDataCmd(titleID string, startTime, endTime time.Time) tea.Cmd {
@@ -83,9 +87,9 @@ func fetchDataCmd(titleID string, startTime, endTime time.Time) tea.Cmd {
 	}
 }
 
-func downloadDataCmd(seriesID string) tea.Cmd {
+func downloadDataCmd(seriesID string, directory string) tea.Cmd {
 	return func() tea.Msg {
-		graphql.DownloadJSON(seriesID)
+		graphql.DownloadJSON(seriesID, directory)
 		return "Download complete"
 	}
 }
@@ -182,14 +186,30 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 		m.CurrentState = Downloading
 		m.SelectedID = selectedRow[1]
 		m.Loading = true
-		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID), m.Spinner.Tick)
+
+		directory, err := dialog.Directory().Title("Select Download Directory").Browse()
+		if err != nil || directory == "" {
+			m.Loading = false
+			m.CurrentState = ShowTable
+			return m, tea.ClearScreen
+		}
+
+		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, directory), m.Spinner.Tick)
 	case Downloading:
 		m.Loading = false
 		m.CurrentState = ShowTable
 		return m, tea.ClearScreen
 	case SelectSeries:
 		m.Loading = true
-		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID), m.Spinner.Tick)
+
+		directory, err := dialog.Directory().Title("Select Download Directory").Browse()
+		if err != nil || directory == "" {
+			m.Loading = false
+			m.CurrentState = ShowTable
+			return m, tea.ClearScreen
+		}
+
+		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, directory), m.Spinner.Tick)
 	}
 	return m, nil
 }
@@ -256,6 +276,12 @@ func (m *Model) handleDataMsg(msg map[string]interface{}) (tea.Model, tea.Cmd) {
 		rows = append(rows, row)
 	}
 
+	sort.SliceStable(rows, func(i, j int) bool {
+		timeI, _ := time.Parse(time.RFC3339, rows[i][0])
+		timeJ, _ := time.Parse(time.RFC3339, rows[j][0])
+		return timeI.Before(timeJ)
+	})
+
 	columns := []table.Column{
 		{Title: "Start Time", Width: 20},
 		{Title: "Serie ID", Width: 10},
@@ -297,17 +323,17 @@ func (m Model) View() string {
 	case SelectGame:
 		return BaseStyle.Render(m.ListModel.View())
 	case EnterStartDays:
-		return BaseStyle.Render("Enter the number of past days to include (e.g., 10): " + m.StartDays)
+		return BaseStyle.Render("Enter the number of past days to include (e.g., 10):  " + m.StartDays)
 	case EnterEndDays:
-		return BaseStyle.Render("Enter the number of future days to include (e.g., 1): " + m.EndDays)
+		return BaseStyle.Render("Enter the number of future days to include (e.g., 1):  " + m.EndDays)
 	case ShowTable:
 		if m.Loading {
-			return BaseStyle.Render(m.Spinner.View()) + "\nLoading data, please wait..."
+			return BaseStyle.Render(fmt.Sprintf("\n\n   %s Loading data, please wait...  \n\n", m.Spinner.View()))
 		}
 		return BaseStyle.Render(m.Table.View()) + "\nPress 'e' to export data, or press Enter to select a series."
 	case Downloading:
 		if m.Loading {
-			return BaseStyle.Render(m.Spinner.View()) + "\nDownloading data, please wait..."
+			return BaseStyle.Render(fmt.Sprintf("\n\n   %s Downloading data, please wait...  \n\n", m.Spinner.View()))
 		}
 		return BaseStyle.Render(m.Table.View())
 	case SelectSeries:

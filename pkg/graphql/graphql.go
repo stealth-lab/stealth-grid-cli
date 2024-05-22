@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/simplesmentemat/stealth-grid-cli/pkg/config"
@@ -99,12 +100,12 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 	return result, nil
 }
 
-func DownloadJSON(serieID string) {
+func DownloadJSON(serieID string, directory string) {
 	url := fmt.Sprintf("https://api.grid.gg/file-download/events/grid/series/%s", serieID)
-
+	fmt.Println(directory)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Printf("Erro ao criar solicitação: %v", err)
+		fmt.Printf("Erro ao criar solicitação: %v\n", err)
 		return
 	}
 
@@ -114,7 +115,7 @@ func DownloadJSON(serieID string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Erro ao baixar o ZIP: %v", err)
+		fmt.Printf("Erro ao baixar o ZIP: %v\n", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -124,18 +125,17 @@ func DownloadJSON(serieID string) {
 		return
 	}
 
-	file, err := os.Create(fmt.Sprintf("%s.zip", serieID))
+	filePath := filepath.Join(directory, fmt.Sprintf("%s.zip", serieID))
+	file, err := os.Create(filePath)
 	if err != nil {
-		fmt.Printf("Erro ao criar o arquivo: %v", err)
+		fmt.Printf("Erro ao criar o arquivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
-		fmt.Printf("Erro ao salvar o ZIP no arquivo: %v", err)
+		fmt.Printf("Erro ao salvar o ZIP no arquivo: %v\n", err)
 		return
 	}
-
-	fmt.Printf("Arquivo ZIP para a série %s baixado com sucesso.\n", serieID)
 }
