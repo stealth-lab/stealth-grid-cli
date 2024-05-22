@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/simplesmentemat/stealth-grid-cli/pkg/config"
 )
 
 type QueryVariables struct {
@@ -22,8 +24,6 @@ type GraphQLRequest struct {
 	Variables QueryVariables `json:"variables"`
 }
 
-/*
- */
 func FetchData(titleID string, startTime, endTime time.Time) (map[string]interface{}, error) {
 	variables := QueryVariables{
 		StartTime:   startTime.Format(time.RFC3339),
@@ -80,8 +80,9 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 		return nil, fmt.Errorf("error creating request: %v", err)
 	}
 
+	apiKey := config.GetAPIKey()
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("x-api-key", "DQmZW6rVNkTT2iZMAsLpzHbuGoTzYTEmiyqLht6p")
+	req.Header.Add("x-api-key", apiKey)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -98,8 +99,6 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 	return result, nil
 }
 
-/*
- */
 func DownloadJSON(serieID string) {
 	url := fmt.Sprintf("https://api.grid.gg/file-download/events/grid/series/%s", serieID)
 
@@ -109,7 +108,8 @@ func DownloadJSON(serieID string) {
 		return
 	}
 
-	req.Header.Add("x-api-key", "DQmZW6rVNkTT2iZMAsLpzHbuGoTzYTEmiyqLht6p")
+	apiKey := config.GetAPIKey()
+	req.Header.Add("x-api-key", apiKey)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
