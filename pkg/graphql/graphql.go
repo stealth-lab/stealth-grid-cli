@@ -51,21 +51,6 @@ type GraphQLRequest struct {
 //   - An error if the request fails at any point. Errors can occur during JSON
 //     marshalling of the request, creation of the HTTP request, sending the HTTP
 //     request, or decoding the JSON response.
-//
-// The function performs the following steps:
-//  1. Initializes a QueryVariables struct with the provided titleID, startTime,
-//     endTime, and an empty AfterCursor.
-//  2. Defines a GraphQL query string that requests series data filtered by the
-//     provided titleID and time range, ordering by start time and limiting the
-//     results to the first 50 series.
-//  3. Constructs a GraphQLRequest struct with the query string and variables.
-//  4. Marshals the GraphQLRequest struct into JSON format.
-//  5. Creates an HTTP POST request with the JSON payload to the specified API
-//     endpoint and sets the appropriate headers (Content-Type and x-api-key).
-//  6. Sends the HTTP request using an HTTP client and handles the response.
-//  7. Decodes the JSON response into a map[string]interface{}.
-//  8. Returns the decoded response map if successful, or an error if any step
-//     fails.
 func FetchData(titleID string, startTime, endTime time.Time) (map[string]interface{}, error) {
 	variables := QueryVariables{
 		StartTime:   startTime.Format(time.RFC3339),
@@ -117,7 +102,7 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 		return nil, fmt.Errorf("error marshalling GraphQL request: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.grid.gg/central-data/graphql", bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest("POST", config.APIURL+"/central-data/graphql", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
 	}
@@ -162,7 +147,7 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 //  7. Copies the content from the response body to the created file.
 //  8. Logs a success message if the file is saved successfully, or an error message if any step fails.
 func DownloadJSON(serieID string, directory string) {
-	url := fmt.Sprintf("https://api.grid.gg/file-download/events/grid/series/%s", serieID)
+	url := fmt.Sprintf("%s/file-download/events/grid/series/%s", config.APIURL, serieID)
 	fmt.Println(directory)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

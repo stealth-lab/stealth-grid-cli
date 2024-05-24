@@ -146,6 +146,7 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.CurrentState == ShowTable {
 			export.ExportData(m.Data)
 		}
+		return m, tea.ClearScreen
 	case "backspace":
 		return m.handleBackspaceKey()
 	case "up", "down":
@@ -194,7 +195,6 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 			m.CurrentState = ShowTable
 			return m, tea.ClearScreen
 		}
-
 		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, directory), m.Spinner.Tick)
 	case Downloading:
 		m.Loading = false
@@ -202,7 +202,6 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 		return m, tea.ClearScreen
 	case SelectSeries:
 		m.Loading = true
-
 		directory, err := dialog.Directory().Title("Select Download Directory").Browse()
 		if err != nil || directory == "" {
 			m.Loading = false

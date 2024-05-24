@@ -10,6 +10,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// APIURL is the base URL for the API, which can be overridden for testing.
+var APIURL = "https://api.grid.gg"
+
 func getConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -30,7 +33,9 @@ func InitConfig() error {
 	if err != nil {
 		return fmt.Errorf("error getting configuration file path: %v", err)
 	}
+
 	viper.SetConfigFile(configPath)
+	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Println("Configuration not found. Please set up the API key:")

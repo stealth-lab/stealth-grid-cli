@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 )
@@ -33,6 +34,7 @@ func ExportData(data []table.Row) {
 			return
 		}
 	}
-
 	fmt.Printf("Data successfully exported to %s\n", fileName)
+	time.Sleep(1 * time.Second)
+
 }
