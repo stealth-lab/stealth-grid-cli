@@ -9,7 +9,7 @@ Welcome to the **Stealth GRID CLI**! This tool helps you fetch, display, and exp
 
 - **GRID**: The leading esports data platform with exclusive global rights to distribute official data and video streams for select events and tournaments.
 - **Stealth**: Utilizes GRID data to address key questions in esports by analyzing large volumes of data in real-time, creating agile and adaptable models.
-- **CLI**: Initially developed for internal use, this CLI has been open-sourced to assist developers in accessing and leveraging this data.
+- **CLI**: Initially developed for internal use, this CLI has been open-sourced to assist developers working with GRID data.
 
 ## Download
 
