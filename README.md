@@ -1,7 +1,9 @@
 
-# Stealth Grid CLI
+# Behind Stealth GRID CLI
 
-Stealth Grid CLI is a command-line interface (CLI) tool designed to fetch, display, and export data related to esports tournaments and series from the Grid API. This tool allows users to select a game, specify a date range, view the resulting data in a table, and export the data to a CSV file. Additionally, users can download related data as a ZIP file.
+- GRID is the leading esports data platform with exclusive global rights to distribute official data and video streams for select events and tournaments.
+- Stealth leverages this data to answer key questions in esports by analyzing large volumes in real-time to create agile, adaptable models.
+- Originally developed for internal use, the CLI has been open-sourced to assist developers in accessing and utilizing this data.
 
 ## Features
 
@@ -12,13 +14,9 @@ Stealth Grid CLI is a command-line interface (CLI) tool designed to fetch, displ
 - **Data Download**: Download detailed data for a selected series as a ZIP file to a user-specified directory.
 - **Interactive UI**: Navigate through the application using keyboard controls for an interactive experience.
 
-## Installation
-
-Download the MSI installer from the [releases](https://github.com/simplesmentemat/stealth-grid-cli/releases) page and run it to install the Stealth Grid CLI on your system.
-
 ## Usage
 
-Once installed, you can start the Stealth Grid CLI by opening your terminal and running the following command:
+Start the CLI by opening your terminal and running:
 
 ```sh
 stealth
@@ -50,22 +48,15 @@ To download detailed data for a selected series:
 - `Backspace`: Delete the last character when entering start or end days.
 - `Up/Down Arrow`: Navigate through lists and tables.
 
-## Dependencies
-
-The Stealth Grid CLI utilizes several Go packages to provide its functionality:
-- `github.com/charmbracelet/bubbles/list`
-- `github.com/charmbracelet/bubbles/spinner`
-- `github.com/charmbracelet/bubbles/table`
-- `github.com/charmbracelet/bubbletea`
-- `github.com/charmbracelet/lipgloss`
-- `github.com/sqweek/dialog`
-
 ## Contributing
 
 Contributions are welcome! Please fork the repository and submit pull requests with your changes.
 
-## License
+## Todo
 
+- [ ] MSI installer.
+
+## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
