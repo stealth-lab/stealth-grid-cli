@@ -10,6 +10,15 @@ import (
 	"github.com/spf13/viper"
 )
 
+var APIURL = "https://api.grid.gg"
+
+// getConfigPath returns the path to the configuration file.
+// It creates the necessary directories if they do not exist.
+//
+// Returns:
+//   - string: The path to the configuration file.
+//   - error: An error if there is any issue determining the user's home directory
+//     or creating the configuration directory.
 func getConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -25,12 +34,20 @@ func getConfigPath() (string, error) {
 	return filepath.Join(configDir, "config.yaml"), nil
 }
 
+// InitConfig initializes the configuration by reading from or creating a config file.
+// It prompts the user to enter the API key if the configuration file does not exist or is incomplete.
+//
+// Returns:
+//   - error: An error if there is any issue reading or writing the configuration file,
+//     or if the API key is not set up correctly.
 func InitConfig() error {
 	configPath, err := getConfigPath()
 	if err != nil {
 		return fmt.Errorf("error getting configuration file path: %v", err)
 	}
+
 	viper.SetConfigFile(configPath)
+	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Println("Configuration not found. Please set up the API key:")
@@ -55,6 +72,10 @@ func InitConfig() error {
 	return nil
 }
 
+// GetAPIKey retrieves the API key from the configuration.
+//
+// Returns:
+//   - string: The API key.
 func GetAPIKey() string {
 	return strings.TrimSpace(viper.GetString("api_key"))
 }

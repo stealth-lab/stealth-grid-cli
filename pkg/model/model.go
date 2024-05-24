@@ -17,22 +17,23 @@ import (
 	"github.com/sqweek/dialog"
 )
 
+// Item represents a list item with a title, description, and ID.
 type Item struct {
 	TitleText       string
 	DescriptionText string
 	ID              string
 }
 
+// FilterValue returns the title text for filtering purposes.
 func (i Item) FilterValue() string { return i.TitleText }
 
-func (i Item) Title() string {
-	return i.TitleText
-}
+// Title returns the title text of the item.
+func (i Item) Title() string { return i.TitleText }
 
-func (i Item) Description() string {
-	return i.DescriptionText
-}
+// Description returns the description text of the item.
+func (i Item) Description() string { return i.DescriptionText }
 
+// State represents the different states of the application.
 type State int
 
 const (
@@ -44,6 +45,7 @@ const (
 	Downloading
 )
 
+// Model represents the main application model.
 type Model struct {
 	ListModel    list.Model
 	Table        table.Model
@@ -57,10 +59,12 @@ type Model struct {
 	EndDays      string
 }
 
+// BaseStyle defines the base style for the application.
 var BaseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("240"))
 
+// InitModel initializes the application model with a list of items.
 func InitModel(items []list.Item) Model {
 	const defaultWidth = 40
 	const listHeight = 20
@@ -74,10 +78,12 @@ func InitModel(items []list.Item) Model {
 	return Model{ListModel: l, Spinner: s, CurrentState: SelectGame}
 }
 
+// Init initializes the application.
 func (m Model) Init() tea.Cmd {
 	return m.Spinner.Tick
 }
 
+// fetchDataCmd fetches data for the specified title ID within the given time range.
 func fetchDataCmd(titleID string, startTime, endTime time.Time) tea.Cmd {
 	return func() tea.Msg {
 		result, err := graphql.FetchData(titleID, startTime, endTime)
@@ -88,6 +94,7 @@ func fetchDataCmd(titleID string, startTime, endTime time.Time) tea.Cmd {
 	}
 }
 
+// downloadDataCmd downloads data for the specified series ID to the specified directory.
 func downloadDataCmd(seriesID string, directory string) tea.Cmd {
 	return func() tea.Msg {
 		graphql.DownloadJSON(seriesID, directory)
@@ -95,6 +102,7 @@ func downloadDataCmd(seriesID string, directory string) tea.Cmd {
 	}
 }
 
+// Update handles messages and updates the application state.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -136,6 +144,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// handleKeyMsg handles key messages.
 func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "ctrl+c":
@@ -146,6 +155,7 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.CurrentState == ShowTable {
 			export.ExportData(m.Data)
 		}
+		return m, tea.ClearScreen
 	case "backspace":
 		return m.handleBackspaceKey()
 	case "up", "down":
@@ -164,6 +174,7 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleEnterKey handles the Enter key press.
 func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 	switch m.CurrentState {
 	case SelectGame:
@@ -194,7 +205,6 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 			m.CurrentState = ShowTable
 			return m, tea.ClearScreen
 		}
-
 		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, directory), m.Spinner.Tick)
 	case Downloading:
 		m.Loading = false
@@ -202,7 +212,6 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 		return m, tea.ClearScreen
 	case SelectSeries:
 		m.Loading = true
-
 		directory, err := dialog.Directory().Title("Select Download Directory").Browse()
 		if err != nil || directory == "" {
 			m.Loading = false
@@ -215,6 +224,7 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleBackspaceKey handles the Backspace key press.
 func (m *Model) handleBackspaceKey() (tea.Model, tea.Cmd) {
 	if m.CurrentState == EnterStartDays && len(m.StartDays) > 0 {
 		m.StartDays = m.StartDays[:len(m.StartDays)-1]
@@ -224,6 +234,7 @@ func (m *Model) handleBackspaceKey() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleDefaultKey handles default key presses.
 func (m *Model) handleDefaultKey(key string) (tea.Model, tea.Cmd) {
 	if !unicode.IsDigit([]rune(key)[0]) {
 		return m, nil
@@ -237,6 +248,7 @@ func (m *Model) handleDefaultKey(key string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleDataMsg handles data messages.
 func (m *Model) handleDataMsg(msg map[string]interface{}) (tea.Model, tea.Cmd) {
 	m.ErrMsg = ""
 	m.Loading = false
@@ -320,6 +332,7 @@ func (m *Model) handleDataMsg(msg map[string]interface{}) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View returns the current view of the application.
 func (m Model) View() string {
 	if m.ErrMsg != "" {
 		return m.ErrMsg
