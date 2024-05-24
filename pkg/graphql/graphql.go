@@ -99,12 +99,12 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 
 	reqBody, err := json.Marshal(graphQLReq)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling GraphQL request: %v", err)
+		return nil, fmt.Errorf("Error marshalling GraphQL request: %v", err)
 	}
 
 	req, err := http.NewRequest("POST", config.APIURL+"/central-data/graphql", bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return nil, fmt.Errorf("Error creating request: %v", err)
 	}
 
 	apiKey := config.GetAPIKey()
@@ -114,13 +114,13 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request to server: %v", err)
+		return nil, fmt.Errorf("Error sending request to server: %v", err)
 	}
 	defer resp.Body.Close()
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("error decoding JSON response: %v", err)
+		return nil, fmt.Errorf("Error decoding JSON response: %v", err)
 	}
 
 	return result, nil
@@ -136,6 +136,7 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 // Parameters:
 //   - serieID: A string representing the ID of the series to download the ZIP file for.
 //     This ID is used to construct the download URL.
+//   - directory: A string representing the directory where the ZIP file will be saved.
 //
 // The function performs the following steps:
 //  1. Constructs the download URL using the provided series ID.
@@ -151,7 +152,7 @@ func DownloadJSON(serieID string, directory string) {
 	fmt.Println(directory)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Printf("Erro ao criar solicitação: %v\n", err)
+		fmt.Printf("Error creating request: %v\n", err)
 		return
 	}
 
@@ -161,27 +162,27 @@ func DownloadJSON(serieID string, directory string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Erro ao baixar o ZIP: %v\n", err)
+		fmt.Printf("Error downloading ZIP: %v\n", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Erro: Código de status %d\n", resp.StatusCode)
+		fmt.Printf("Error: Status code %d\n", resp.StatusCode)
 		return
 	}
 
 	filePath := filepath.Join(directory, fmt.Sprintf("%s.zip", serieID))
 	file, err := os.Create(filePath)
 	if err != nil {
-		fmt.Printf("Erro ao criar o arquivo: %v\n", err)
+		fmt.Printf("Error creating file: %v\n", err)
 		return
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
-		fmt.Printf("Erro ao salvar o ZIP no arquivo: %v\n", err)
+		fmt.Printf("Error saving ZIP to file: %v\n", err)
 		return
 	}
 }
