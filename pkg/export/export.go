@@ -4,12 +4,14 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/sqweek/dialog"
 )
 
-// ExportData exports the provided data to a CSV file named "games.csv".
+// ExportData exports the provided data to a CSV file selected by the user.
 // The CSV file will include the headers "Start Time", "Serie ID", "Tournament", "Blue Team", and "Red Team".
 // Each row in the provided data will be written as a record in the CSV file.
 //
@@ -24,12 +26,21 @@ import (
 //
 // Behavior:
 //
-//	The function creates a new CSV file named "games.csv" in the current working directory. It writes the headers to the file,
-//	followed by each row of data. If an error occurs during file creation or writing, the function prints an error message
-//	to the console. Upon successful completion, a confirmation message is printed and the function pauses for 1 second.
+//	The function opens a dialog for the user to select the save location and file name for the CSV file.
+//	It writes the headers to the file, followed by each row of data. If an error occurs during file creation or writing,
+//	the function prints an error message to the console. Upon successful completion, a confirmation message is printed and the function pauses for 1 second.
 func ExportData(data []table.Row) {
-	fileName := "games.csv"
-	file, err := os.Create(fileName)
+	filePath, err := dialog.File().Title("Save CSV File").Save()
+	if err != nil || filePath == "" {
+		fmt.Println("File save canceled or error occurred.")
+		return
+	}
+
+	if filepath.Ext(filePath) != ".csv" {
+		filePath += ".csv"
+	}
+
+	file, err := os.Create(filePath)
 	if err != nil {
 		fmt.Printf("Error creating file: %v", err)
 		return
@@ -52,6 +63,6 @@ func ExportData(data []table.Row) {
 			return
 		}
 	}
-	fmt.Printf("Data successfully exported to %s\n", fileName)
+	fmt.Printf("Data successfully exported to %s\n", filePath)
 	time.Sleep(1 * time.Second)
 }
