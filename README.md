@@ -1,5 +1,6 @@
+# Stealth GRID CLI
 
-# Behind Stealth GRID CLI
+## Behind Stealth GRID CLI
 
 - GRID is the leading esports data platform with exclusive global rights to distribute official data and video streams for select events and tournaments.
 - Stealth leverages this data to answer key questions in esports by analyzing large volumes in real-time to create agile, adaptable models.
