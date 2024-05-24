@@ -3,7 +3,7 @@
 Welcome to the **Stealth GRID CLI**! This tool helps you fetch, display, and export data related to esports tournaments and series from the Grid API.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-0.1.0-brightgreen.svg)
 
 ## Behind Stealth GRID CLI
 
