@@ -7,7 +7,7 @@ Stealth Grid CLI is a command-line interface (CLI) tool designed to fetch, displ
 
 - **Game Selection**: Choose from a list of available games to view their series data.
 - **Date Range Filtering**: Specify the start and end days to filter the series data within a particular date range.
-- **Data Display**: View the series data in a tabular format with columns for Start Time, Series ID, Tournament, Blue Team, and Red Team.
+- **Data Display**: View the series data in a tabular format with columns for Start Time, Series ID, Tournament, Team One, and Team Two.
 - **Data Export**: Export the displayed data to a CSV file at a user-specified location.
 - **Data Download**: Download detailed data for a selected series as a ZIP file to a user-specified directory.
 - **Interactive UI**: Navigate through the application using keyboard controls for an interactive experience.
