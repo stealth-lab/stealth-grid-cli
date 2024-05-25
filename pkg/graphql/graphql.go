@@ -1,3 +1,7 @@
+// Package graphql provides functionality for interacting with the GraphQL API of the Stealth Grid service.
+//
+// This package includes functions to construct and send GraphQL queries, handle the responses,
+// and download related data files.
 package graphql
 
 import (
