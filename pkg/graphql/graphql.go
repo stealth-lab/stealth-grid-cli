@@ -103,12 +103,12 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 
 	reqBody, err := json.Marshal(graphQLReq)
 	if err != nil {
-		return nil, fmt.Errorf("Error marshalling GraphQL request: %v", err)
+		return nil, fmt.Errorf("error marshalling GraphQL request: %v", err)
 	}
 
 	req, err := http.NewRequest("POST", config.APIURL+"/central-data/graphql", bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("Error creating request: %v", err)
+		return nil, fmt.Errorf("error creating request: %v", err)
 	}
 
 	apiKey := config.GetAPIKey()
@@ -118,13 +118,13 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Error sending request to server: %v", err)
+		return nil, fmt.Errorf("error sending request to server: %v", err)
 	}
 	defer resp.Body.Close()
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("Error decoding JSON response: %v", err)
+		return nil, fmt.Errorf("error decoding JSON response: %v", err)
 	}
 
 	return result, nil
