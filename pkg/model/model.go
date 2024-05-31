@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -43,20 +44,24 @@ const (
 	ShowTable
 	SelectSeries
 	Downloading
+	SelectDownloadOption
 )
 
 // Model represents the main application model.
 type Model struct {
-	ListModel    list.Model
-	Table        table.Model
-	Spinner      spinner.Model
-	ErrMsg       string
-	CurrentState State
-	Loading      bool
-	SelectedID   string
-	Data         []table.Row
-	StartDays    string
-	EndDays      string
+	ListModel         list.Model
+	Table             table.Model
+	Spinner           spinner.Model
+	ErrMsg            string
+	CurrentState      State
+	Loading           bool
+	SelectedID        string
+	Data              []table.Row
+	StartDays         string
+	EndDays           string
+	DownloadOption    string
+	DownloadOptions   []list.Item
+	DownloadListModel list.Model
 }
 
 // BaseStyle defines the base style for the application.
@@ -75,7 +80,18 @@ func InitModel(items []list.Item) Model {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
-	return Model{ListModel: l, Spinner: s, CurrentState: SelectGame}
+	options := []list.Item{}
+
+	dl := list.New(options, list.NewDefaultDelegate(), defaultWidth, listHeight)
+	dl.Title = "Select Download Option"
+
+	return Model{
+		ListModel:         l,
+		Spinner:           s,
+		CurrentState:      SelectGame,
+		DownloadOptions:   options,
+		DownloadListModel: dl,
+	}
 }
 
 // Init initializes the application.
@@ -95,9 +111,25 @@ func fetchDataCmd(titleID string, startTime, endTime time.Time) tea.Cmd {
 }
 
 // downloadDataCmd downloads data for the specified series ID to the specified directory.
-func downloadDataCmd(seriesID string, directory string) tea.Cmd {
+func downloadDataCmd(seriesID string, option string) tea.Cmd {
 	return func() tea.Msg {
-		graphql.DownloadJSON(seriesID, directory)
+		directory, err := dialog.Directory().Title("Select Download Directory").Browse()
+		if err != nil || directory == "" {
+			return "Download cancelled or directory not selected"
+		}
+
+		if option == "events-grid-compressed" {
+			err := graphql.DownloadJSON(seriesID, directory)
+			if err != nil {
+				return fmt.Sprintf("Error downloading JSON: %v", err)
+			}
+		} else {
+			err := graphql.DownloadGame(seriesID, option, directory)
+			if err != nil {
+				return fmt.Sprintf("Error downloading ROFL for game %s: %v", option, err)
+			}
+		}
+
 		return "Download complete"
 	}
 }
@@ -118,7 +150,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.CurrentState = ShowTable
 			m.Loading = false
 			return m, tea.Batch(tea.ClearScreen, m.Spinner.Tick)
-		} else {
+		} else if msg != "" {
 			m.ErrMsg = msg
 		}
 		return m, nil
@@ -159,12 +191,14 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "backspace":
 		return m.handleBackspaceKey()
 	case "up", "down":
-		if m.CurrentState == SelectGame || m.CurrentState == ShowTable {
+		if m.CurrentState == SelectGame || m.CurrentState == ShowTable || m.CurrentState == SelectDownloadOption {
 			var cmd tea.Cmd
 			if m.CurrentState == SelectGame {
 				m.ListModel, cmd = m.ListModel.Update(msg)
 			} else if m.CurrentState == ShowTable {
 				m.Table, cmd = m.Table.Update(msg)
+			} else if m.CurrentState == SelectDownloadOption {
+				m.DownloadListModel, cmd = m.DownloadListModel.Update(msg)
 			}
 			return m, cmd
 		}
@@ -195,17 +229,43 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 		return m, tea.Batch(tea.ClearScreen, fetchDataCmd(m.SelectedID, startTime, endTime), m.Spinner.Tick)
 	case ShowTable:
 		selectedRow := m.Table.SelectedRow()
-		m.CurrentState = Downloading
+		m.CurrentState = SelectDownloadOption
 		m.SelectedID = selectedRow[1]
-		m.Loading = true
 
-		directory, err := dialog.Directory().Title("Select Download Directory").Browse()
-		if err != nil || directory == "" {
-			m.Loading = false
-			m.CurrentState = ShowTable
-			return m, tea.ClearScreen
+		roflCount, hasJSON, err := graphql.FetchGameList(m.SelectedID)
+		if err != nil {
+			m.ErrMsg = fmt.Sprintf("Error fetching game list: %v", err)
+			return m, nil
 		}
-		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, directory), m.Spinner.Tick)
+
+		file, err := os.Create("output.txt")
+		if err != nil {
+			fmt.Println("Error creating file:", err)
+		}
+		defer file.Close()
+
+		_, err = file.WriteString(fmt.Sprintf("roflCount: %d\nhasJSON: %v\n", roflCount, hasJSON))
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+		}
+
+		var options []list.Item
+		if hasJSON {
+			options = append(options, Item{TitleText: "Download JSON", ID: "events-grid-compressed"})
+		}
+		for i := 1; i <= roflCount; i++ {
+			options = append(options, Item{TitleText: fmt.Sprintf("Download Game %d", i), ID: strconv.Itoa(i)})
+		}
+		m.DownloadOptions = options
+		m.DownloadListModel.SetItems(options)
+
+		return m, nil
+	case SelectDownloadOption:
+		selectedOption := m.DownloadListModel.SelectedItem().(Item)
+		m.DownloadOption = selectedOption.ID
+		m.CurrentState = Downloading
+		m.Loading = true
+		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, m.DownloadOption), m.Spinner.Tick)
 	case Downloading:
 		m.Loading = false
 		m.CurrentState = ShowTable
@@ -219,7 +279,7 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 			return m, tea.ClearScreen
 		}
 
-		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, directory), m.Spinner.Tick)
+		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, m.DownloadOption), m.Spinner.Tick)
 	}
 	return m, nil
 }
@@ -349,6 +409,8 @@ func (m Model) View() string {
 			return BaseStyle.Render(fmt.Sprintf("\n\n   %s Loading data, please wait...  \n\n", m.Spinner.View()))
 		}
 		return BaseStyle.Render(m.Table.View()) + "\nPress 'e' to export data, or press Enter to select a series."
+	case SelectDownloadOption:
+		return BaseStyle.Render(m.DownloadListModel.View())
 	case Downloading:
 		if m.Loading {
 			return BaseStyle.Render(fmt.Sprintf("\n\n   %s Downloading data, please wait...  \n\n", m.Spinner.View()))

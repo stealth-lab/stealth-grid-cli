@@ -146,13 +146,11 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 //  6. Creates a file to save the downloaded ZIP content.
 //  7. Copies the content from the response body to the created file.
 //  8. Logs a success message if the file is saved successfully, or an error message if any step fails.
-func DownloadJSON(serieID string, directory string) {
+func DownloadJSON(serieID string, directory string) error {
 	url := fmt.Sprintf("%s/file-download/events/grid/series/%s", config.APIURL, serieID)
-	fmt.Println(directory)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Printf("Erro ao criar solicitação: %v\n", err)
-		return
+		return fmt.Errorf("erro ao criar solicitação: %v", err)
 	}
 
 	apiKey := config.GetAPIKey()
@@ -161,27 +159,119 @@ func DownloadJSON(serieID string, directory string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Erro ao baixar o ZIP: %v\n", err)
-		return
+		return fmt.Errorf("erro ao baixar o ZIP: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Erro: Código de status %d\n", resp.StatusCode)
-		return
+		return fmt.Errorf("erro: código de status %d", resp.StatusCode)
+	}
+
+	// Verificar se o diretório existe e é acessível
+	if _, err := os.Stat(directory); os.IsNotExist(err) {
+		return fmt.Errorf("o diretório não existe: %s", directory)
 	}
 
 	filePath := filepath.Join(directory, fmt.Sprintf("%s.zip", serieID))
 	file, err := os.Create(filePath)
 	if err != nil {
-		fmt.Printf("Erro ao criar o arquivo: %v\n", err)
-		return
+		return fmt.Errorf("erro ao criar o arquivo: %v", err)
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
-		fmt.Printf("Erro ao salvar o ZIP no arquivo: %v\n", err)
-		return
+		return fmt.Errorf("erro ao salvar o ZIP no arquivo: %v", err)
 	}
+
+	return nil
+}
+
+// error 400
+func DownloadGame(seriesID string, gameID string, directory string) error {
+	url := fmt.Sprintf("%s/file-download/replay/riot/series/%s/games/%s", config.APIURL, seriesID, gameID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("erro ao criar solicitação: %v", err)
+	}
+
+	apiKey := config.GetAPIKey()
+	req.Header.Add("x-api-key", apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("erro ao baixar o ZIP: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("erro: código de status %d", resp.StatusCode)
+	}
+
+	if _, err := os.Stat(directory); os.IsNotExist(err) {
+		return fmt.Errorf("o diretório não existe: %s", directory)
+	}
+
+	filePath := filepath.Join(directory, fmt.Sprintf("%s-%s.rofl", seriesID, gameID))
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("erro ao criar o arquivo: %v", err)
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return fmt.Errorf("erro ao salvar o ROFL no arquivo: %v", err)
+	}
+
+	return nil
+}
+
+func FetchGameList(seriesID string) (int, bool, error) {
+	url := fmt.Sprintf("%s/file-download/list/%s", config.APIURL, seriesID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return 0, false, fmt.Errorf("erro ao criar solicitação: %v", err)
+	}
+
+	apiKey := config.GetAPIKey()
+	req.Header.Add("x-api-key", apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, false, fmt.Errorf("erro ao obter a lista de jogos: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, false, fmt.Errorf("erro: código de status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Files []struct {
+			ID       string `json:"id"`
+			FileName string `json:"fileName"`
+		} `json:"files"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, false, fmt.Errorf("erro ao decodificar resposta: %v", err)
+	}
+
+	var roflCount int
+	var hasJSON bool
+	for _, file := range result.Files {
+		if file.ID == "events-grid" {
+			hasJSON = true
+		}
+		if filepath.Ext(file.FileName) == ".rofl" {
+			roflCount++
+		}
+	}
+
+	return roflCount, hasJSON, nil
 }
