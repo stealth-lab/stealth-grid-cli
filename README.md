@@ -11,12 +11,17 @@ Welcome to the **Stealth GRID CLI**! This tool helps you fetch, display, and exp
 - **Stealth**: Utilizes GRID data to address key questions in esports by analyzing large volumes of data in real-time, creating agile and adaptable models.
 - **CLI**: Initially developed for internal use, this CLI has been open-sourced to assist developers working with GRID data.
 
-## Usage
+## Getting Started
 
-Start the CLI by opening your terminal and running:
-```sh
-stealth
-```
+Follow these steps to download and start the CLI:
+
+1. **Download the executable file:**
+   - Go to the [releases](https://github.com/stealth-lab/stealth-grid-cli/releases/tag/releases) page of Stealth Grid CLI on GitHub.
+   - Find the latest version and click on the executable (.exe) file to download it.
+
+2. **Run the executable file:**
+   - After downloading, navigate to the location where the file was saved.
+   - Double-click on the .exe file to run the CLI.
 
 ## Features
 - **Game Selection**: Choose from a list of available games to view their series data.
