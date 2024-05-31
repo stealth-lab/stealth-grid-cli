@@ -151,13 +151,11 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 //  6. Creates a file to save the downloaded ZIP content.
 //  7. Copies the content from the response body to the created file.
 //  8. Logs a success message if the file is saved successfully, or an error message if any step fails.
-func DownloadJSON(serieID string, directory string) {
+func DownloadJSON(serieID string, directory string) error {
 	url := fmt.Sprintf("%s/file-download/events/grid/series/%s", config.APIURL, serieID)
-	fmt.Println(directory)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Printf("Error creating request: %v\n", err)
-		return
+		return fmt.Errorf("erro ao criar solicitação: %v", err)
 	}
 
 	apiKey := config.GetAPIKey()
@@ -166,27 +164,156 @@ func DownloadJSON(serieID string, directory string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Error downloading ZIP: %v\n", err)
-		return
+		return fmt.Errorf("erro ao baixar o ZIP: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Error: Status code %d\n", resp.StatusCode)
-		return
+		return fmt.Errorf("erro: código de status %d", resp.StatusCode)
+	}
+
+	// Verificar se o diretório existe e é acessível
+	if _, err := os.Stat(directory); os.IsNotExist(err) {
+		return fmt.Errorf("o diretório não existe: %s", directory)
 	}
 
 	filePath := filepath.Join(directory, fmt.Sprintf("%s.zip", serieID))
 	file, err := os.Create(filePath)
 	if err != nil {
-		fmt.Printf("Error creating file: %v\n", err)
-		return
+		return fmt.Errorf("erro ao criar o arquivo: %v", err)
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
-		fmt.Printf("Error saving ZIP to file: %v\n", err)
-		return
+		return fmt.Errorf("erro ao salvar o ZIP no arquivo: %v", err)
 	}
+
+	return nil
+}
+
+// DownloadGame downloads a replay file for a given series ID and game ID from the specified API.
+//
+// This function constructs a URL to download a replay file related to the specified
+// series ID and game ID. It sends an HTTP GET request to the URL and handles the response,
+// saving the replay file locally. If any error occurs during the process, it logs
+// the error and terminates.
+//
+// Parameters:
+//   - seriesID: A string representing the ID of the series to download the replay file for.
+//     This ID is used to construct the download URL.
+//   - gameID: A string representing the ID of the game to download the replay file for.
+//     This ID is used to construct the download URL.
+//   - directory: A string representing the directory where the replay file will be saved.
+//
+// The function performs the following steps:
+//  1. Constructs the download URL using the provided series ID and game ID.
+//  2. Creates an HTTP GET request to the constructed URL.
+//  3. Sets the necessary headers (including the API key) for the request.
+//  4. Sends the request using an HTTP client and handles the response.
+//  5. Checks if the response status code is OK (200). If not, logs an error and terminates.
+//  6. Creates a file to save the downloaded replay content.
+//  7. Copies the content from the response body to the created file.
+//  8. Logs a success message if the file is saved successfully, or an error message if any step fails.
+func DownloadGame(seriesID string, gameID string, directory string) error {
+	url := fmt.Sprintf("%s/file-download/replay/riot/series/%s/games/%s", config.APIURL, seriesID, gameID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("erro ao criar solicitação: %v", err)
+	}
+
+	apiKey := config.GetAPIKey()
+	req.Header.Add("x-api-key", apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("erro ao baixar o ZIP: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("erro: código de status %d", resp.StatusCode)
+	}
+
+	if _, err := os.Stat(directory); os.IsNotExist(err) {
+		return fmt.Errorf("o diretório não existe: %s", directory)
+	}
+
+	filePath := filepath.Join(directory, fmt.Sprintf("%s-%s.rofl", seriesID, gameID))
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("erro ao criar o arquivo: %v", err)
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return fmt.Errorf("erro ao salvar o ROFL no arquivo: %v", err)
+	}
+
+	return nil
+}
+
+// FetchGameList fetches the list of game files for a given series ID.
+//
+// This function constructs a URL to fetch the list of game files related to the specified
+// series ID. It sends an HTTP GET request to the URL and handles the response,
+// parsing the JSON response to extract the list of game files. If any error occurs during
+// the process, it logs the error and terminates.
+//
+// Parameters:
+//   - seriesID: A string representing the ID of the series to fetch the game list for.
+//     This ID is used to construct the fetch URL.
+//
+// Returns:
+//   - An integer representing the count of ".rofl" files found in the series.
+//   - A boolean indicating whether a JSON file related to the series was found.
+//   - An error if the request fails at any point.
+func FetchGameList(seriesID string) (int, bool, error) {
+	url := fmt.Sprintf("%s/file-download/list/%s", config.APIURL, seriesID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return 0, false, fmt.Errorf("erro ao criar solicitação: %v", err)
+	}
+
+	apiKey := config.GetAPIKey()
+	req.Header.Add("x-api-key", apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, false, fmt.Errorf("erro ao obter a lista de jogos: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, false, fmt.Errorf("erro: código de status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Files []struct {
+			ID       string `json:"id"`
+			FileName string `json:"fileName"`
+		} `json:"files"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, false, fmt.Errorf("erro ao decodificar resposta: %v", err)
+	}
+
+	var roflCount int
+	var hasJSON bool
+	for _, file := range result.Files {
+		if file.ID == "events-grid" {
+			hasJSON = true
+		}
+		if filepath.Ext(file.FileName) == ".rofl" {
+			roflCount++
+		}
+	}
+
+	return roflCount, hasJSON, nil
 }

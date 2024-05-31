@@ -5,6 +5,7 @@ package model
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -31,22 +32,16 @@ type Item struct {
 // FilterValue returns the title text for filtering purposes.
 //
 // This method implements the list.Item interface.
-// Parameters:
-//   - i: The item for which the filter value is returned.
 func (i Item) FilterValue() string { return i.TitleText }
 
 // Title returns the title text of the item.
 //
 // This method implements the list.Item interface.
-// Parameters:
-//   - i: The item for which the title is returned.
 func (i Item) Title() string { return i.TitleText }
 
 // Description returns the description text of the item.
 //
 // This method implements the list.Item interface.
-// Parameters:
-//   - i: The item for which the description is returned.
 func (i Item) Description() string { return i.DescriptionText }
 
 // State represents the different states of the application.
@@ -71,20 +66,24 @@ const (
 
 	// Downloading indicates that the application is in the state where data is being downloaded.
 	Downloading
+	SelectDownloadOption
 )
 
 // Model represents the main application model.
 type Model struct {
-	ListModel    list.Model    // ListModel is used to manage and display the list of items.
-	Table        table.Model   // Table is used to manage and display the table of series data.
-	Spinner      spinner.Model // Spinner is used to display a loading spinner.
-	ErrMsg       string        // ErrMsg holds any error messages to be displayed.
-	CurrentState State         // CurrentState holds the current state of the application.
-	Loading      bool          // Loading indicates whether the application is in a loading state.
-	SelectedID   string        // SelectedID holds the ID of the selected series.
-	Data         []table.Row   // Data holds the rows of series data to be displayed in the table.
-	StartDays    string        // StartDays holds the number of past days to include in the query.
-	EndDays      string        // EndDays holds the number of future days to include in the query.
+	ListModel         list.Model
+	Table             table.Model
+	Spinner           spinner.Model
+	ErrMsg            string
+	CurrentState      State
+	Loading           bool
+	SelectedID        string
+	Data              []table.Row
+	StartDays         string
+	EndDays           string
+	DownloadOption    string
+	DownloadOptions   []list.Item
+	DownloadListModel list.Model
 }
 
 // BaseStyle defines the base style for the application.
@@ -120,11 +119,17 @@ func InitModel(items []list.Item) Model {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
-	// Return the initialized Model with the list and spinner, setting the initial state to SelectGame.
+	options := []list.Item{}
+
+	dl := list.New(options, list.NewDefaultDelegate(), defaultWidth, listHeight)
+	dl.Title = "Select Download Option"
+
 	return Model{
-		ListModel:    l,
-		Spinner:      s,
-		CurrentState: SelectGame,
+		ListModel:         l,
+		Spinner:           s,
+		CurrentState:      SelectGame,
+		DownloadOptions:   options,
+		DownloadListModel: dl,
 	}
 }
 
@@ -174,25 +179,40 @@ func fetchDataCmd(titleID string, startTime, endTime time.Time) tea.Cmd {
 //
 // Returns:
 //   - tea.Cmd: A command that downloads the data and returns a tea.Msg indicating the download status.
-func downloadDataCmd(seriesID string, directory string) tea.Cmd {
+func downloadDataCmd(seriesID string, option string) tea.Cmd {
 	return func() tea.Msg {
-		graphql.DownloadJSON(seriesID, directory)
+		directory, err := dialog.Directory().Title("Select Download Directory").Browse()
+		if err != nil || directory == "" {
+			return "Download cancelled or directory not selected"
+		}
+
+		if option == "events-grid-compressed" {
+			err := graphql.DownloadJSON(seriesID, directory)
+			if err != nil {
+				return fmt.Sprintf("Error downloading JSON: %v", err)
+			}
+		} else {
+			err := graphql.DownloadGame(seriesID, option, directory)
+			if err != nil {
+				return fmt.Sprintf("Error downloading ROFL for game %s: %v", option, err)
+			}
+		}
+
 		return "Download complete"
 	}
 }
 
-// downloadDataCmd downloads data for the specified series ID to the specified directory.
+// Update handles messages and updates the application state.
 //
-// This function creates a command that downloads a ZIP file containing data for a specified
-// series ID and saves it to the given directory. It returns a message indicating the download
-// status.
+// This function processes incoming messages and updates the application state accordingly.
+// It handles various message types such as key presses, data fetch results, and download status.
 //
 // Parameters:
-//   - seriesID: A string representing the ID of the series to download the data for.
-//   - directory: A string representing the directory where the ZIP file will be saved.
+//   - msg: A tea.Msg representing the incoming message to be handled.
 //
 // Returns:
-//   - tea.Cmd: A command that downloads the data and returns a tea.Msg indicating the download status.
+//   - tea.Model: The updated model.
+//   - tea.Cmd: A command to be executed, if any.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -208,7 +228,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.CurrentState = ShowTable
 			m.Loading = false
 			return m, tea.Batch(tea.ClearScreen, m.Spinner.Tick)
-		} else {
+		} else if msg != "" {
 			m.ErrMsg = msg
 		}
 		return m, nil
@@ -260,12 +280,14 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "backspace":
 		return m.handleBackspaceKey()
 	case "up", "down":
-		if m.CurrentState == SelectGame || m.CurrentState == ShowTable {
+		if m.CurrentState == SelectGame || m.CurrentState == ShowTable || m.CurrentState == SelectDownloadOption {
 			var cmd tea.Cmd
 			if m.CurrentState == SelectGame {
 				m.ListModel, cmd = m.ListModel.Update(msg)
 			} else if m.CurrentState == ShowTable {
 				m.Table, cmd = m.Table.Update(msg)
+			} else if m.CurrentState == SelectDownloadOption {
+				m.DownloadListModel, cmd = m.DownloadListModel.Update(msg)
 			}
 			return m, cmd
 		}
@@ -303,17 +325,43 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 		return m, tea.Batch(tea.ClearScreen, fetchDataCmd(m.SelectedID, startTime, endTime), m.Spinner.Tick)
 	case ShowTable:
 		selectedRow := m.Table.SelectedRow()
-		m.CurrentState = Downloading
+		m.CurrentState = SelectDownloadOption
 		m.SelectedID = selectedRow[1]
-		m.Loading = true
 
-		directory, err := dialog.Directory().Title("Select Download Directory").Browse()
-		if err != nil || directory == "" {
-			m.Loading = false
-			m.CurrentState = ShowTable
-			return m, tea.ClearScreen
+		roflCount, hasJSON, err := graphql.FetchGameList(m.SelectedID)
+		if err != nil {
+			m.ErrMsg = fmt.Sprintf("Error fetching game list: %v", err)
+			return m, nil
 		}
-		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, directory), m.Spinner.Tick)
+
+		file, err := os.Create("output.txt")
+		if err != nil {
+			fmt.Println("Error creating file:", err)
+		}
+		defer file.Close()
+
+		_, err = file.WriteString(fmt.Sprintf("roflCount: %d\nhasJSON: %v\n", roflCount, hasJSON))
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+		}
+
+		var options []list.Item
+		if hasJSON {
+			options = append(options, Item{TitleText: "Download JSON", ID: "events-grid-compressed"})
+		}
+		for i := 1; i <= roflCount; i++ {
+			options = append(options, Item{TitleText: fmt.Sprintf("Download Game %d", i), ID: strconv.Itoa(i)})
+		}
+		m.DownloadOptions = options
+		m.DownloadListModel.SetItems(options)
+
+		return m, nil
+	case SelectDownloadOption:
+		selectedOption := m.DownloadListModel.SelectedItem().(Item)
+		m.DownloadOption = selectedOption.ID
+		m.CurrentState = Downloading
+		m.Loading = true
+		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, m.DownloadOption), m.Spinner.Tick)
 	case Downloading:
 		m.Loading = false
 		m.CurrentState = ShowTable
@@ -327,15 +375,15 @@ func (m *Model) handleEnterKey() (tea.Model, tea.Cmd) {
 			return m, tea.ClearScreen
 		}
 
-		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, directory), m.Spinner.Tick)
+		return m, tea.Batch(tea.ClearScreen, downloadDataCmd(m.SelectedID, m.DownloadOption), m.Spinner.Tick)
 	}
 	return m, nil
 }
 
-// handleEnterKey handles the 'enter' key press.
+// handleBackspaceKey handles the 'backspace' key press.
 //
-// This function processes the 'enter' key press based on the current state of the application.
-// It performs actions such as selecting a game, confirming date ranges, and more.
+// This function processes the 'backspace' key press to delete the last character
+// in the StartDays or EndDays fields based on the current state of the application.
 //
 // Returns:
 //   - tea.Model: The updated model.
@@ -397,9 +445,9 @@ func (m *Model) handleDefaultKey(key string) (tea.Model, tea.Cmd) {
 //  7. Sort the rows by start time in ascending order.
 //  8. Define the table columns.
 //  9. Create a new table with the specified columns, rows, and styles.
-//  10. Define the table styles for the headers and selected rows.
-//  11. Update the model with the new table and data.
-//  12. Return the updated model and no additional command.
+// 10. Define the table styles for the headers and selected rows.
+// 11. Update the model with the new table and data.
+// 12. Return the updated model and no additional command.
 //
 // Error Handling:
 //   - The function includes checks to ensure the data is valid at each step, setting error messages if any issues are found.
@@ -457,7 +505,7 @@ func (m *Model) handleDataMsg(msg map[string]interface{}) (tea.Model, tea.Cmd) {
 		{Title: "Start Time", Width: 20},
 		{Title: "Serie ID", Width: 10},
 		{Title: "Tournament", Width: 20},
-		{Title: "Team One", Width: 20},
+		 {Title: "Team One", Width: 20},
 		{Title: "Team Two", Width: 20},
 	}
 
@@ -510,6 +558,8 @@ func (m Model) View() string {
 			return BaseStyle.Render(fmt.Sprintf("\n\n   %s Loading data, please wait...  \n\n", m.Spinner.View()))
 		}
 		return BaseStyle.Render(m.Table.View()) + "\nPress 'e' to export data, or press Enter to select a series."
+	case SelectDownloadOption:
+		return BaseStyle.Render(m.DownloadListModel.View())
 	case Downloading:
 		if m.Loading {
 			return BaseStyle.Render(fmt.Sprintf("\n\n   %s Downloading data, please wait...  \n\n", m.Spinner.View()))
