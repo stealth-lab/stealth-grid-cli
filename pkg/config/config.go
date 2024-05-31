@@ -1,3 +1,7 @@
+// Package config provides functionality for managing the configuration of the Stealth Grid CLI application.
+//
+// This package handles reading, writing, and initializing configuration files,
+// including retrieving the API key necessary for accessing the Grid API.
 package config
 
 import (
@@ -13,6 +17,7 @@ import (
 var APIURL = "https://api.grid.gg"
 
 // getConfigPath returns the path to the configuration file.
+//
 // It creates the necessary directories if they do not exist.
 //
 // Returns:
@@ -35,11 +40,12 @@ func getConfigPath() (string, error) {
 }
 
 // InitConfig initializes the configuration by reading from or creating a config file.
-// It prompts the user to enter the API key if the configuration file does not exist or is incomplete.
+//
+// If the configuration file does not exist or is incomplete, it prompts the user to enter the API key
+// and saves it to the configuration file.
 //
 // Returns:
-//   - error: An error if there is any issue reading or writing the configuration file,
-//     or if the API key is not set up correctly.
+//   - error: An error if there is any issue reading or writing the configuration file, or if the API key is not set up correctly.
 func InitConfig() error {
 	configPath, err := getConfigPath()
 	if err != nil {
@@ -72,7 +78,9 @@ func InitConfig() error {
 	return nil
 }
 
-// GetAPIKey retrieves the API key from the configuration.
+// GetAPIKey retrieves the API key from the configuration file.
+//
+// It reads the API key from the configuration file managed by Viper and trims any leading or trailing whitespace.
 //
 // Returns:
 //   - string: The API key.

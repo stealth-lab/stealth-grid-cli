@@ -1,3 +1,7 @@
+// Package graphql provides functionality for interacting with the GraphQL API of the Stealth Grid service.
+//
+// This package includes functions to construct and send GraphQL queries, handle the responses,
+// and download related data files.
 package graphql
 
 import (
@@ -136,6 +140,7 @@ func FetchData(titleID string, startTime, endTime time.Time) (map[string]interfa
 // Parameters:
 //   - serieID: A string representing the ID of the series to download the ZIP file for.
 //     This ID is used to construct the download URL.
+//   - directory: A string representing the directory where the ZIP file will be saved.
 //
 // The function performs the following steps:
 //  1. Constructs the download URL using the provided series ID.
@@ -187,7 +192,29 @@ func DownloadJSON(serieID string, directory string) error {
 	return nil
 }
 
-// error 400
+// DownloadGame downloads a replay file for a given series ID and game ID from the specified API.
+//
+// This function constructs a URL to download a replay file related to the specified
+// series ID and game ID. It sends an HTTP GET request to the URL and handles the response,
+// saving the replay file locally. If any error occurs during the process, it logs
+// the error and terminates.
+//
+// Parameters:
+//   - seriesID: A string representing the ID of the series to download the replay file for.
+//     This ID is used to construct the download URL.
+//   - gameID: A string representing the ID of the game to download the replay file for.
+//     This ID is used to construct the download URL.
+//   - directory: A string representing the directory where the replay file will be saved.
+//
+// The function performs the following steps:
+//  1. Constructs the download URL using the provided series ID and game ID.
+//  2. Creates an HTTP GET request to the constructed URL.
+//  3. Sets the necessary headers (including the API key) for the request.
+//  4. Sends the request using an HTTP client and handles the response.
+//  5. Checks if the response status code is OK (200). If not, logs an error and terminates.
+//  6. Creates a file to save the downloaded replay content.
+//  7. Copies the content from the response body to the created file.
+//  8. Logs a success message if the file is saved successfully, or an error message if any step fails.
 func DownloadGame(seriesID string, gameID string, directory string) error {
 	url := fmt.Sprintf("%s/file-download/replay/riot/series/%s/games/%s", config.APIURL, seriesID, gameID)
 
@@ -229,6 +256,21 @@ func DownloadGame(seriesID string, gameID string, directory string) error {
 	return nil
 }
 
+// FetchGameList fetches the list of game files for a given series ID.
+//
+// This function constructs a URL to fetch the list of game files related to the specified
+// series ID. It sends an HTTP GET request to the URL and handles the response,
+// parsing the JSON response to extract the list of game files. If any error occurs during
+// the process, it logs the error and terminates.
+//
+// Parameters:
+//   - seriesID: A string representing the ID of the series to fetch the game list for.
+//     This ID is used to construct the fetch URL.
+//
+// Returns:
+//   - An integer representing the count of ".rofl" files found in the series.
+//   - A boolean indicating whether a JSON file related to the series was found.
+//   - An error if the request fails at any point.
 func FetchGameList(seriesID string) (int, bool, error) {
 	url := fmt.Sprintf("%s/file-download/list/%s", config.APIURL, seriesID)
 
